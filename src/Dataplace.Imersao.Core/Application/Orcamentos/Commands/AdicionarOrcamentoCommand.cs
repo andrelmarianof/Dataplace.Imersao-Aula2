@@ -7,7 +7,8 @@ namespace Dataplace.Imersao.Core.Application.Orcamentos.Commands
     {
         public AdicionarOrcamentoCommand(OrcamentoViewModel item) : base(item)
         {
-
+            //new IdOrcament
+           
 
         }
     }

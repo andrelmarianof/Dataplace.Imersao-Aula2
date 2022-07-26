@@ -14,11 +14,11 @@ using System.Threading.Tasks;
 
 namespace Dataplace.Imersao.Core.Application.Orcamentos.Commands
 {
-    public class OrcamentoCommandHandler: 
-         CommandHandler,
+    public class OrcamentoCommandHandler : CommandHandler,
          IRequestHandler<AdicionarOrcamentoCommand, bool>,
          IRequestHandler<FecharOrcamentoCommand, bool>,
-         IRequestHandler<AdicionarOrcamentoItemCommand, bool>
+         IRequestHandler<AdicionarOrcamentoItemCommand, bool>,
+         IRequestHandler<CancelarOrcamentoCommand, bool>
     {
         #region fields
         private Domain.Orcamentos.Repositories.IOrcamentoRepository _orcamentoRepository;
@@ -79,6 +79,33 @@ namespace Dataplace.Imersao.Core.Application.Orcamentos.Commands
             return Commit(transactionId);
 
         }
+
+
+        public async Task<bool> Handle(CancelarOrcamentoCommand request, CancellationToken cancellationToken)
+        {
+            var transactionId = BeginTransaction();
+            var cdEmpresa = dpLibrary05.mGenerico.SymPRM.cdempresa;
+            var cdFilial = dpLibrary05.mGenerico.SymPRM.cdfilial;
+
+            var orcamento = _orcamentoRepository.ObterOrcamento(cdEmpresa, cdFilial, request.NumOcamento);
+            if (orcamento == null)
+            {
+                NotifyErrorValidation("notFound", "orçamento não encotrado");
+                return false;
+            }
+
+            orcamento.CancelarOrcamento();
+            if (!_orcamentoRepository.AtualizarOrcamento(orcamento))
+            {
+                NotifyErrorValidation("orcamento", "Ocoreu um problema com a persistência dos dados");
+                return false;
+            }
+
+
+            AddEvent(new Orcamentos.Events.OrcamentoCanecladoEvent(request.NumOcamento));
+            return Commit(transactionId);
+        }
+
 
         public async Task<bool> Handle(FecharOrcamentoCommand request, CancellationToken cancellationToken)
         {
@@ -147,8 +174,7 @@ namespace Dataplace.Imersao.Core.Application.Orcamentos.Commands
             var item = orcamento.AdicionarItem(produto, quantidade, preco);
 
 
-            var itemAdicionado = _orcamentoItemRepository.AdicionarItem(item); itemAdicionado
-
+            var itemAdicionado = _orcamentoItemRepository.AdicionarItem(item);
             if (itemAdicionado == null)
                 NotifyErrorValidation("database", "Ocoreu um problema com a persistência dos dados");
             request.Item.Seq = itemAdicionado.Seq;
